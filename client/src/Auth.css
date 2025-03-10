@@ -1,0 +1,95 @@
+/* src/Auth.css */
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f0f2f5;
+}
+
+.auth-box {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.auth-box h2 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.input-group {
+  margin-bottom: 20px;
+  text-align: center; /* Вирівнювання по центру */
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: #555;
+  text-align: center; /* Вирівнюємо текст label */
+}
+
+.input-group input {
+  width: 100%; /* Поля займають усю ширину контейнера */
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.3s;
+  box-sizing: border-box;
+  display: block; /* Забезпечуємо, що input є блоковим елементом */
+  margin: 0 auto; /* Центруємо input горизонтально */
+  max-width: 300px; /* Обмежуємо максимальну ширину для кращого вигляду */
+}
+
+.input-group input:focus {
+  border-color: #007bff;
+}
+
+.error {
+  color: #d9534f;
+  margin-bottom: 15px;
+  font-size: 14px;
+  text-align: center; /* Центруємо повідомлення про помилку */
+}
+
+.auth-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  box-sizing: border-box;
+  max-width: 300px; /* Обмежуємо ширину кнопки для узгодженості з input */
+  margin: 0 auto; /* Центруємо кнопку */
+  display: block; /* Забезпечуємо блокову поведінку */
+}
+
+.auth-button:hover {
+  background-color: #0056b3;
+}
+
+.link {
+  margin-top: 15px;
+  color: #555;
+  text-align: center; /* Центруємо посилання */
+}
+
+.link a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.link a:hover {
+  text-decoration: underline;
+}

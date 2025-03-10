@@ -1,0 +1,35 @@
+.App {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.messages {
+  border: 1px solid #ccc;
+  padding: 10px;
+  height: 400px;
+  overflow-y: scroll;
+}
+
+.message {
+  margin: 10px 0;
+}
+
+.input-area {
+  margin-top: 20px;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 70%;
+  padding: 5px;
+}
+
+button {
+  padding: 5px 10px;
+  margin-left: 10px;
+}
+
+form {
+  margin-top: 20px;
+}
