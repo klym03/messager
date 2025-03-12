@@ -1,19 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import './Auth.css'; // Імпортуємо стилі
+import { AuthContext } from './App'; // Імпорт контексту
+import './Auth.css';
 
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext); // Отримуємо функцію login
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       const response = await axios.post('http://localhost:4000/login', { username, password });
-      localStorage.setItem('username', response.data.username);
+      login(response.data.username); // Використовуємо login із контексту
       navigate('/chat');
     } catch (err) {
       setError(err.response?.data?.error || 'Помилка входу');

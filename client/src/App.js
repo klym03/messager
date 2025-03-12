@@ -1,14 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import { Route, Routes, Navigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
 import Login from './Login';
 import Register from './Register';
+import { ThemeProvider } from './ThemeContext';
+import ThemeToggle from './components/ThemeToggle';
 import './App.css';
+
+// Створюємо контекст для авторизації
+export const AuthContext = React.createContext();
 
 const socket = io('http://localhost:4000', { transports: ['websocket'] });
 
 function Chat() {
+  const { username, sessionId, logout } = useContext(AuthContext); // Додаємо logout
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [file, setFile] = useState(null);
@@ -16,6 +22,7 @@ function Chat() {
   useEffect(() => {
     socket.on('connect', () => {
       console.log('Підключено до сервера');
+      socket.emit('join', { username, sessionId });
     });
 
     socket.on('messageHistory', (history) => {
@@ -38,12 +45,12 @@ function Chat() {
       socket.off('connect');
       socket.off('connect_error');
     };
-  }, []);
+  }, [username, sessionId]);
 
   const sendMessage = () => {
     if (input.trim()) {
       console.log('Надсилаю повідомлення:', input);
-      socket.emit('sendMessage', { content: input });
+      socket.emit('sendMessage', { content: input, type: 'text', username });
       setInput('');
     }
   };
@@ -54,6 +61,7 @@ function Chat() {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('username', username);
 
     try {
       await axios.post('http://localhost:4000/upload', formData);
@@ -63,12 +71,23 @@ function Chat() {
     }
   };
 
+  const handleLogout = () => {
+    logout(); // Викликаємо функцію logout
+    socket.emit('leave', { username, sessionId }); // Повідомляємо сервер про вихід
+  };
+
   return (
     <div className="App">
       <h1>Мій меседжер</h1>
+      <div style={{ textAlign: 'right', marginBottom: '10px' }}>
+        <button onClick={handleLogout} style={{ padding: '5px 10px' }}>
+          Вийти
+        </button>
+      </div>
       <div className="messages">
         {messages.map((msg, index) => (
-          <div key={index} className="message">
+          <div key={index} className={`message ${msg.username === username ? 'message-own' : 'message-other'}`}>
+            <strong>{msg.username}: </strong>
             {msg.type === 'text' ? (
               <p>{msg.content}</p>
             ) : (
@@ -102,20 +121,49 @@ function Chat() {
 }
 
 function App() {
-  const isAuthenticated = !!localStorage.getItem('username'); // Перевірка авторизації
+  const [auth, setAuth] = useState(() => {
+    const savedUsername = localStorage.getItem('username');
+    return { username: savedUsername || null, sessionId: Date.now().toString() };
+  });
+
+  useEffect(() => {
+    if (auth.username) {
+      localStorage.setItem('username', auth.username);
+    } else {
+      localStorage.removeItem('username');
+    }
+  }, [auth.username]);
+
+  const login = (username) => {
+    setAuth((prev) => ({ ...prev, username }));
+  };
+
+  const logout = () => {
+    setAuth((prev) => ({ ...prev, username: null }));
+    localStorage.removeItem('username');
+  };
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route
-          path="/chat"
-          element={isAuthenticated ? <Chat /> : <Navigate to="/login" />}
-        />
-        <Route path="/" element={<Navigate to="/login" />} />
-      </Routes>
-    </Router>
+    <AuthContext.Provider value={{ ...auth, login, logout }}>
+      <ThemeProvider>
+        <ThemeToggle />
+        <Routes>
+          <Route
+            path="/login"
+            element={auth.username ? <Navigate to="/chat" /> : <Login />}
+          />
+          <Route
+            path="/register"
+            element={auth.username ? <Navigate to="/chat" /> : <Register />}
+          />
+          <Route
+            path="/chat"
+            element={auth.username ? <Chat /> : <Navigate to="/login" />}
+          />
+          <Route path="/" element={<Navigate to="/login" />} />
+        </Routes>
+      </ThemeProvider>
+    </AuthContext.Provider>
   );
 }
 

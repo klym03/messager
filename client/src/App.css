@@ -1,35 +1,162 @@
+:root {
+  --bg-gradient-start: #1e3c72;
+  --bg-gradient-end: #2a5298;
+  --box-bg: rgba(255, 255, 255, 0.95);
+  --text-color: #333;
+  --label-color: #555;
+  --input-border: #ccc;
+  --button-bg-start: #1e3c72;
+  --button-bg-end: #2a5298;
+  --link-color: #2a5298;
+  --error-color: #d9534f;
+  --switch-bg: #ccc;
+  --switch-thumb: #fff;
+  --icon-color-light: #ffd700;
+  --icon-color-dark: #b0c4de;
+  --message-bg-own: #e3f2fd; /* Світло-синій для своїх повідомлень у світлій темі */
+  --message-bg-other: #f5f5f5; /* Світло-сірий для чужих повідомлень у світлій темі */
+  --message-text: #333;
+  --message-time: #666;
+}
+
+.dark-theme {
+  --bg-gradient-start: #1a001a;
+  --bg-gradient-end: #4b004b;
+  --box-bg: rgba(30, 30, 30, 0.95);
+  --text-color: #e0e0e0;
+  --label-color: #bbb;
+  --input-border: #555;
+  --button-bg-start: #1a001a;
+  --button-bg-end: #4b004b;
+  --link-color: #9370db;
+  --error-color: #ff6b6b;
+  --switch-bg: #555;
+  --switch-thumb: #bbb;
+  --icon-color-light: #ffeb3b;
+  --icon-color-dark: #f0f8ff;
+  --message-bg-own: #2a2a44; /* Темно-синій для своїх повідомлень у темній темі */
+  --message-bg-other: #3a3a5a; /* Темно-фіолетовий для чужих повідомлень у темній темі */
+  --message-text: #e0e0e0;
+  --message-time: #bbb;
+}
+
+body {
+  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+  transition: background 0.5s ease;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
 .App {
   max-width: 600px;
   margin: 0 auto;
   padding: 20px;
+  background: var(--box-bg);
+  color: var(--text-color);
+  border-radius: 15px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  transition: background 0.5s ease, color 0.5s ease, box-shadow 0.5s ease;
+  font-family: inherit;
 }
 
 .messages {
-  border: 1px solid #ccc;
+  border: 1px solid var(--input-border);
   padding: 10px;
   height: 400px;
   overflow-y: scroll;
+  background-color: var(--box-bg);
+  color: var(--text-color);
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease;
+  font-family: inherit;
 }
 
 .message {
   margin: 10px 0;
+  padding: 8px;
+  border-radius: 5px;
+  font-family: inherit;
+  background-color: var(--message-bg-other); /* За замовчуванням чужі повідомлення */
+  color: var(--message-text);
+}
+
+.message-own {
+  background-color: var(--message-bg-own); /* Свої повідомлення */
+  margin-left: 20%;
+  text-align: right;
+}
+
+.message-other {
+  background-color: var(--message-bg-other); /* Чужі повідомлення */
+  margin-right: 20%;
+  text-align: left;
+}
+
+.message strong {
+  font-weight: 600;
+  color: var(--message-text);
+}
+
+.message p {
+  margin: 5px 0;
+  color: var(--message-text);
+}
+
+.message small {
+  font-size: 0.8em;
+  color: var(--message-time);
 }
 
 .input-area {
   margin-top: 20px;
 }
 
-input[type="text"],
-input[type="password"] {
+input[type="text"] {
   width: 70%;
   padding: 5px;
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  background-color: var(--box-bg);
+  color: var(--text-color);
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease;
+  font-family: inherit;
 }
 
 button {
   padding: 5px 10px;
   margin-left: 10px;
+  background: linear-gradient(90deg, var(--button-bg-start), var(--button-bg-end));
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.5s ease, transform 0.3s ease, box-shadow 0.3s ease;
+  font-family: inherit;
 }
 
-form {
-  margin-top: 20px;
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(42, 82, 152, 0.4);
+}
+
+input[type="file"] {
+  margin-top: 10px;
+  font-family: inherit;
+}
+
+h1 {
+  color: var(--text-color);
+  transition: color 0.5s ease;
+  font-family: inherit;
+}
+
+select {
+  padding: 5px;
+  margin-right: 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  background-color: var(--box-bg);
+  color: var(--text-color);
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease;
+  font-family: inherit;
 }

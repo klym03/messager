@@ -5,12 +5,18 @@ const multer = require('multer');
 const path = require('path');
 const cors = require('cors');
 const { Pool } = require('pg');
+const os = require('os'); // Додаємо модуль os для визначення IP
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: '*', // Дозволяємо всім джерелам (для тестування)
+    methods: ['GET', 'POST']
+  }
+});
 
-app.use(cors({ origin: 'http://localhost:3000', methods: ['GET', 'POST'] }));
+app.use(cors({ origin: '*', methods: ['GET', 'POST'] }));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
@@ -22,7 +28,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Підключення до PostgreSQL
 const pool = new Pool({
   user: 'patrick',
   host: 'localhost',
@@ -39,17 +44,70 @@ pool.connect((err) => {
   }
 });
 
-let messages = [];
+// Функція для визначення IP-адреси
+function getLocalIPAddress() {
+  const interfaces = os.networkInterfaces();
+  for (const ifaceName of Object.keys(interfaces)) {
+    for (const iface of interfaces[ifaceName]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address; // Повертаємо першу знайдену IPv4-адресу
+      }
+    }
+  }
+  return '0.0.0.0'; // За замовчуванням, якщо не знайдено
+}
 
-io.on('connection', (socket) => {
+const ipAddress = getLocalIPAddress();
+
+io.on('connection', async (socket) => {
   console.log('Користувач підключився:', socket.id);
-  socket.emit('messageHistory', messages);
+  const sessionId = socket.handshake.query.sessionId || socket.id;
 
-  socket.on('sendMessage', (data) => {
-    console.log('Отримано повідомлення від клієнта:', data);
-    const message = { id: socket.id, type: 'text', content: data.content, timestamp: new Date() };
-    messages.push(message);
-    io.emit('newMessage', message);
+  socket.on('join', async ({ username, sessionId }) => {
+    console.log(`Користувач ${username} приєднався з sessionId: ${sessionId}`);
+    try {
+      const result = await pool.query('SELECT * FROM messages ORDER BY timestamp ASC');
+      socket.emit('messageHistory', result.rows);
+    } catch (err) {
+      console.error('Помилка при отриманні історії:', err);
+      socket.emit('messageHistory', []);
+    }
+  });
+
+  socket.on('sendMessage', async (data) => {
+    const { content, type, username } = data;
+    try {
+      const result = await pool.query(
+        'INSERT INTO messages (username, type, content, timestamp) VALUES ($1, $2, $3, $4) RETURNING *',
+        [username || 'Анонім', type || 'text', content, new Date()]
+      );
+      const newMessage = result.rows[0];
+      io.emit('newMessage', newMessage);
+    } catch (err) {
+      console.error('Помилка при збереженні:', err);
+    }
+  });
+
+  socket.on('leave', ({ username, sessionId }) => {
+    console.log(`Користувач ${username} вийшов з sessionId: ${sessionId}`);
+  });
+
+  socket.on('clearChat', async ({ username, clearForAll }) => {
+    console.log('Отримано запит на очищення чату:', { username, clearForAll });
+    try {
+      if (clearForAll) {
+        await pool.query('DELETE FROM messages');
+        io.emit('chatCleared', { message: 'Чат очищено для всіх' });
+      } else {
+        await pool.query('DELETE FROM messages WHERE username = $1', [username]);
+        socket.emit('chatCleared', { message: 'Ваш чат очищено' });
+      }
+      const result = await pool.query('SELECT * FROM messages ORDER BY timestamp ASC');
+      io.emit('messageHistory', result.rows);
+    } catch (err) {
+      console.error('Помилка при очищенні чату:', err);
+      socket.emit('chatCleared', { error: 'Помилка при очищенні чату' });
+    }
   });
 
   socket.on('disconnect', () => {
@@ -57,7 +115,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Реєстрація
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -71,7 +128,6 @@ app.post('/register', async (req, res) => {
     }
 
     await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, password]);
-    console.log('Зареєстровано користувача:', { username });
     res.json({ message: 'Реєстрація успішна' });
   } catch (err) {
     console.error('Помилка реєстрації:', err);
@@ -79,7 +135,6 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Вхід
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -87,7 +142,6 @@ app.post('/login', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Неправильне ім’я користувача або пароль' });
     }
-    console.log('Увійшов користувач:', { username });
     res.json({ message: 'Вхід успішний', username });
   } catch (err) {
     console.error('Помилка входу:', err);
@@ -95,19 +149,29 @@ app.post('/login', async (req, res) => {
   }
 });
 
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).send('Файл не завантажено');
-  const message = {
-    id: req.body.userId || 'unknown',
-    type: 'file',
-    content: `/uploads/${req.file.filename}`,
-    timestamp: new Date(),
-  };
-  messages.push(message);
-  io.emit('newMessage', message);
-  res.send('Файл завантажено');
+app.post('/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('Файл не завантажено');
+  }
+
+  const username = req.body.username || 'Анонім';
+  const filePath = `/uploads/${req.file.filename}`;
+
+  try {
+    const result = await pool.query(
+      'INSERT INTO messages (username, type, content, timestamp) VALUES ($1, $2, $3, $4) RETURNING *',
+      [username, 'file', filePath, new Date()]
+    );
+    const newMessage = result.rows[0];
+    io.emit('newMessage', newMessage);
+    res.send('Файл завантажено');
+  } catch (err) {
+    console.error('Помилка при збереженні файлу:', err);
+    res.status(500).send('Помилка сервера');
+  }
 });
 
-server.listen(4000, () => {
-  console.log('Сервер запущено на http://localhost:4000');
+// Запускаємо сервер на всіх інтерфейсах
+server.listen(4000, '0.0.0.0', () => {
+  console.log(`Сервер запущено на http://${ipAddress}:4000 (доступний у мережі)`);
 });

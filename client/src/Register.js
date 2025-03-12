@@ -1,19 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import './Auth.css'; // Імпортуємо стилі
+import { AuthContext } from './App'; // Імпорт контексту
+import './Auth.css';
 
 function Register() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext); // Отримуємо функцію login
 
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
       await axios.post('http://localhost:4000/register', { username, password });
-      navigate('/login');
+      login(username); // Логін після реєстрації
+      navigate('/chat');
     } catch (err) {
       setError(err.response?.data?.error || 'Помилка реєстрації');
     }
