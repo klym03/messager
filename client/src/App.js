@@ -4,7 +4,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import Login from './Login';
 import Register from './Register';
-import { ThemeProvider } from './ThemeContext';
+import { ThemeProvider, ThemeContext } from './ThemeContext'; // Залишаємо для Chat
 import ThemeToggle from './components/ThemeToggle';
 import './App.css';
 
@@ -16,6 +16,7 @@ const socket = io(SERVER_URL, { transports: ['websocket'], reconnection: true, r
 
 function Chat() {
   const { username, sessionId, logout } = useContext(AuthContext);
+  const { theme } = useContext(ThemeContext); // Використовуємо тему для Chat
   const [privateMessages, setPrivateMessages] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -82,7 +83,7 @@ function Chat() {
       socket.off('connect_error');
       socket.off('reconnect');
     };
-  }, [username, sessionId]);
+  }, [username, sessionId, selectedChat]);
 
   const sendPrivateMessage = () => {
     if (privateInput.trim() && selectedChat) {
@@ -137,99 +138,108 @@ function Chat() {
   });
 
   return (
-    <div className="App">
-      <h1>Мій месенджер</h1>
-      <div style={{ textAlign: 'right', marginBottom: '10px' }}>
-        <button onClick={handleLogout} style={{ padding: '5px 10px', marginRight: '10px' }}>
-          Вийти
-        </button>
-      </div>
-
-      <div style={{ marginBottom: '10px' }}>
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Пошук активного користувача..."
-          style={{ padding: '5px', width: '200px' }}
-        />
-        <button onClick={handleSearch} style={{ padding: '5px 10px' }}>
-          Шукати
-        </button>
-        {searchResults.length > 0 && (
-          <div className="search-results">
-            {searchResults.map((user, index) => (
-              <div
-                key={index}
-                onClick={() => handleSelectUser(user)}
-                style={{ padding: '5px', cursor: 'pointer' }}
-              >
-                {user}
-              </div>
-            ))}
+    <div className={`App ${theme || 'light'}`}>
+      <header className="app-header">
+        <div className="user-info">
+          <div className="user-actions">
+            <ThemeToggle /> {/* Залишаємо для Chat */}
+            <span className="username">{username}</span>
+            <button onClick={handleLogout} className="logout-btn">
+              Вийти
+            </button>
           </div>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', gap: '10px' }}>
-        <div style={{ width: '200px', border: '1px solid var(--input-border)', padding: '10px' }}>
-          <h3>Чати</h3>
-          {chatList.map((user) => (
-            <div
-              key={user}
-              onClick={() => setSelectedChat(user)}
-              style={{
-                padding: '5px',
-                cursor: 'pointer',
-                background: selectedChat === user ? '#d0d0d0' : 'transparent'
-              }}
-            >
-              {user} {privateMessages[user]?.length > 0 && (
-                <small>({new Date(privateMessages[user][privateMessages[user].length - 1].timestamp).toLocaleTimeString()})</small>
-              )}
-            </div>
-          ))}
         </div>
+      </header>
 
-        <div style={{ flex: 1 }}>
-          {selectedChat ? (
-            <div className="private-messages">
-              <h3>Переписка з {selectedChat}</h3>
-              <div style={{ border: '1px solid var(--input-border)', padding: '10px', height: '300px', overflowY: 'auto', marginBottom: '10px' }}>
-                {privateMessages[selectedChat]?.map((msg, index) => (
+      <div className="main-content">
+        <div className="chat-sidebar">
+          <div className="search-bar">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Пошук користувача..."
+              className="search-input"
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            {searchResults.length > 0 && (
+              <div className="search-results">
+                {searchResults.map((user, index) => (
                   <div
                     key={index}
-                    style={{
-                      margin: '5px 0',
-                      textAlign: msg.sender_username === username ? 'right' : 'left'
-                    }}
+                    onClick={() => handleSelectUser(user)}
+                    className="search-result-item"
                   >
-                    <strong>{msg.sender_username}</strong>: {msg.content.match(/\.(jpeg|jpg|png|gif)$/i) ? (
-                      <img src={`${SERVER_URL}${msg.content}`} alt="uploaded" style={{ maxWidth: '200px' }} />
-                    ) : (
-                      msg.content
-                    )} <small>{new Date(msg.timestamp).toLocaleTimeString()}</small>
+                    {user}
                   </div>
                 ))}
               </div>
-              <input
-                type="text"
-                value={privateInput}
-                onChange={(e) => setPrivateInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendPrivateMessage()}
-                placeholder="Напишіть повідомлення..."
-                style={{ padding: '5px', width: '70%' }}
-              />
-              <button onClick={sendPrivateMessage} style={{ padding: '5px 10px' }}>
-                Надіслати
-              </button>
-              <form onSubmit={handleFileUpload} style={{ marginTop: '10px' }}>
-                <input type="file" onChange={(e) => setFile(e.target.files[0])} />
-                <button type="submit">Завантажити</button>
-              </form>
+            )}
+          </div>
+          <div className="chat-list">
+            {chatList.map((user) => (
+              <div
+                key={user}
+                onClick={() => setSelectedChat(user)}
+                className={`chat-item ${selectedChat === user ? 'active' : ''}`}
+              >
+                <div className="chat-item-content">
+                  <span className="chat-item-avatar">{user[0].toUpperCase()}</span>
+                  <div className="chat-item-info">
+                    <span className="chat-item-name">{user}</span>
+                    {privateMessages[user]?.length > 0 && (
+                      <span className="last-message-time">
+                        {new Date(privateMessages[user][privateMessages[user].length - 1].timestamp).toLocaleTimeString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="chat-area">
+          {selectedChat ? (
+            <div className="chat-box">
+              <div className="chat-header">
+                <h3>{selectedChat}</h3>
+              </div>
+              <div className="messages-container">
+                {privateMessages[selectedChat]?.map((msg, index) => (
+                  <div
+                    key={index}
+                    className={`message ${msg.sender_username === username ? 'sent' : 'received'}`}
+                  >
+                    <div className="message-content">
+                      <strong>{msg.sender_username}</strong>: {msg.content.match(/\.(jpeg|jpg|png|gif)$/i) ? (
+                        <img src={`${SERVER_URL}${msg.content}`} alt="uploaded" className="message-image" />
+                      ) : (
+                        msg.content
+                      )}
+                      <span className="message-time">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="message-input">
+                <form onSubmit={handleFileUpload} className="upload-form">
+                  <input type="file" onChange={(e) => setFile(e.target.files[0])} className="file-input" id="file-upload" />
+                  <label htmlFor="file-upload" className="upload-btn">📎</label>
+                </form>
+                <input
+                  type="text"
+                  value={privateInput}
+                  onChange={(e) => setPrivateInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && sendPrivateMessage()}
+                  placeholder="Напишіть повідомлення..."
+                  className="message-input-field"
+                />
+                <button onClick={sendPrivateMessage} className="send-btn">➤</button>
+              </div>
             </div>
           ) : (
-            <p>Виберіть чат або знайдіть нового користувача</p>
+            <p className="no-chat">Виберіть чат або знайдіть нового користувача</p>
           )}
         </div>
       </div>
@@ -264,26 +274,43 @@ function App() {
   };
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout }}>
-      <ThemeProvider>
-        <ThemeToggle />
-        <Routes>
-          <Route
-            path="/login"
-            element={auth.username ? <Navigate to="/chat" /> : <Login />}
-          />
-          <Route
-            path="/register"
-            element={auth.username ? <Navigate to="/chat" /> : <Register />}
-          />
-          <Route
-            path="/chat"
-            element={auth.username ? <Chat /> : <Navigate to="/login" />}
-          />
-          <Route path="/" element={<Navigate to="/login" />} />
-        </Routes>
-      </ThemeProvider>
-    </AuthContext.Provider>
+    <ThemeProvider>
+      <AuthContext.Provider value={{ ...auth, login, logout }}>
+        <div className="App">
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                auth.username ? (
+                  <Navigate to="/chat" />
+                ) : (
+                  <div className="auth-page">
+                    <Login />
+                  </div>
+                )
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                auth.username ? (
+                  <Navigate to="/chat" />
+                ) : (
+                  <div className="auth-page">
+                    <Register />
+                  </div>
+                )
+              }
+            />
+            <Route
+              path="/chat"
+              element={auth.username ? <Chat /> : <Navigate to="/login" />}
+            />
+            <Route path="/" element={<Navigate to="/login" />} />
+          </Routes>
+        </div>
+      </AuthContext.Provider>
+    </ThemeProvider>
   );
 }
 

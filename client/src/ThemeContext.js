@@ -1,30 +1,30 @@
 import React, { createContext, useState, useEffect } from 'react';
 
-export const ThemeContext = createContext();
+export const ThemeContext = createContext({
+  theme: 'light',
+  toggleTheme: () => {},
+});
 
 export const ThemeProvider = ({ children }) => {
-  const [isDarkTheme, setIsDarkTheme] = useState(() => {
+  const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
-    return savedTheme === 'dark' ? true : false;
+    return savedTheme || 'light'; // За замовчуванням світла тема
   });
 
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    document.documentElement.className = theme; // Застосовуємо тему до <html>
+    console.log('Застосовуємо тему:', theme);
+  }, [theme]);
+
   const toggleTheme = () => {
-    const newTheme = !isDarkTheme;
-    setIsDarkTheme(newTheme);
-    document.body.classList.toggle('dark-theme', newTheme);
-    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
-    document.documentElement.style.setProperty('--bg-transition', newTheme ? 'dark' : 'light');
-    setTimeout(() => {
-      document.documentElement.style.removeProperty('--bg-transition');
-    }, 500);
+    console.log('Перемикаємо тему з', theme);
+    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
+    console.log('Нова тема:', theme === 'light' ? 'dark' : 'light');
   };
 
-  useEffect(() => {
-    document.body.classList.toggle('dark-theme', isDarkTheme);
-  }, [isDarkTheme]);
-
   return (
-    <ThemeContext.Provider value={{ isDarkTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
