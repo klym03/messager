@@ -160,3 +160,120 @@ select {
   transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease;
   font-family: inherit;
 }
+/* Додайте до існуючого файлу App.css */
+.private-messages {
+  border: 1px solid var(--input-border);
+  padding: 10px;
+  margin-bottom: 10px;
+  background-color: var(--box-bg);
+}
+
+.private-messages h3 {
+  margin-top: 0;
+  color: var(--text-color);
+}
+
+.private-messages input {
+  padding: 5px;
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  background-color: var(--box-bg);
+  color: var(--text-color);
+  width: 70%;
+}
+
+.private-messages button {
+  padding: 5px 10px;
+  background: linear-gradient(90deg, var(--button-bg-start), var(--button-bg-end));
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.search-results {
+  border: 1px solid #ccc;
+  max-height: 100px;
+  overflow-y: auto;
+  background: #f0f0f0;
+}
+
+.search-results div {
+  padding: 5px;
+  cursor: pointer;
+}
+
+.search-results div:hover {
+  background: #d0d0d0;
+}
+/* Існуючі стилі залишаються, додаємо нові */
+.chat-list {
+  width: 200px;
+  border: 1px solid var(--input-border);
+  padding: 10px;
+}
+
+.chat-list h3 {
+  margin-top: 0;
+  color: var(--text-color);
+}
+
+.chat-list div {
+  padding: 5px;
+  cursor: pointer;
+}
+
+.chat-list div:hover {
+  background: #d0d0d0;
+}
+
+.chat-list div.selected {
+  background: #d0d0d0;
+}
+
+.private-messages {
+  flex: 1;
+  border: 1px solid var(--input-border);
+  padding: 10px;
+  margin-bottom: 10px;
+  background-color: var(--box-bg);
+}
+
+.private-messages h3 {
+  margin-top: 0;
+  color: var(--text-color);
+}
+
+.private-messages input {
+  padding: 5px;
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  background-color: var(--box-bg);
+  color: var(--text-color);
+  width: 70%;
+}
+
+.private-messages button {
+  padding: 5px 10px;
+  background: linear-gradient(90deg, var(--button-bg-start), var(--button-bg-end));
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.search-results {
+  border: 1px solid #ccc;
+  max-height: 100px;
+  overflow-y: auto;
+  background: #f0f0f0;
+}
+
+.search-results div {
+  padding: 5px;
+  cursor: pointer;
+}
+
+.search-results div:hover {
+  background: #d0d0d0;
+}

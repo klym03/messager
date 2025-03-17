@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Route, Routes, Navigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
@@ -8,50 +8,86 @@ import { ThemeProvider } from './ThemeContext';
 import ThemeToggle from './components/ThemeToggle';
 import './App.css';
 
-// Створюємо контекст для авторизації
 export const AuthContext = React.createContext();
 
-const socket = io('http://localhost:4000', { transports: ['websocket'] });
+const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : '192.168.1.100';
+const SERVER_URL = `http://${SERVER_IP}:4000`;
+const socket = io(SERVER_URL, { transports: ['websocket'], reconnection: true, reconnectionAttempts: 5 });
 
 function Chat() {
-  const { username, sessionId, logout } = useContext(AuthContext); // Додаємо logout
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const { username, sessionId, logout } = useContext(AuthContext);
+  const [privateMessages, setPrivateMessages] = useState({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [privateInput, setPrivateInput] = useState('');
   const [file, setFile] = useState(null);
 
   useEffect(() => {
     socket.on('connect', () => {
-      console.log('Підключено до сервера');
+      console.log('Підключено до сервера, socket.id:', socket.id);
       socket.emit('join', { username, sessionId });
     });
 
-    socket.on('messageHistory', (history) => {
-      console.log('Отримано історію:', history);
-      setMessages(history);
+    socket.on('privateMessageHistory', (history) => {
+      console.log('Отримано історію приватних повідомлень:', history);
+      const chats = {};
+      history.forEach(msg => {
+        const otherUser = msg.sender_username === username ? msg.receiver_username : msg.sender_username;
+        if (!chats[otherUser]) chats[otherUser] = [];
+        chats[otherUser].push(msg);
+      });
+      setPrivateMessages(chats);
+      if (!selectedChat && Object.keys(chats).length > 0) {
+        setSelectedChat(Object.keys(chats)[0]);
+      }
     });
 
-    socket.on('newMessage', (message) => {
-      console.log('Отримано нове повідомлення:', message);
-      setMessages((prev) => [...prev, message]);
+    socket.on('newPrivateMessage', (message) => {
+      console.log('Отримано нове приватне повідомлення:', message);
+      const otherUser = message.sender_username === username ? message.receiver_username : message.sender_username;
+      setPrivateMessages(prev => {
+        const updatedChats = { ...prev };
+        if (!updatedChats[otherUser]) updatedChats[otherUser] = [];
+        updatedChats[otherUser] = [...updatedChats[otherUser], message];
+        return updatedChats;
+      });
+    });
+
+    socket.on('privateMessageError', (error) => {
+      console.log('Помилка приватного повідомлення:', error);
+      alert(error);
+    });
+
+    socket.on('searchResults', (results) => {
+      console.log('Результати пошуку отримані для socket.id:', socket.id, 'результати:', results);
+      setSearchResults(results);
     });
 
     socket.on('connect_error', (err) => {
-      console.error('Помилка підключення:', err.message);
+      console.error('Помилка підключення до WebSocket:', err.message);
+    });
+
+    socket.on('reconnect', (attempt) => {
+      console.log('Повторне підключення успішне, спроба:', attempt, 'socket.id:', socket.id);
+      socket.emit('join', { username, sessionId });
     });
 
     return () => {
-      socket.off('messageHistory');
-      socket.off('newMessage');
+      socket.off('privateMessageHistory');
+      socket.off('newPrivateMessage');
+      socket.off('privateMessageError');
+      socket.off('searchResults');
       socket.off('connect');
       socket.off('connect_error');
+      socket.off('reconnect');
     };
   }, [username, sessionId]);
 
-  const sendMessage = () => {
-    if (input.trim()) {
-      console.log('Надсилаю повідомлення:', input);
-      socket.emit('sendMessage', { content: input, type: 'text', username });
-      setInput('');
+  const sendPrivateMessage = () => {
+    if (privateInput.trim() && selectedChat) {
+      socket.emit('sendPrivateMessage', { receiver: selectedChat, content: privateInput });
+      setPrivateInput('');
     }
   };
 
@@ -64,7 +100,7 @@ function Chat() {
     formData.append('username', username);
 
     try {
-      await axios.post('http://localhost:4000/upload', formData);
+      await axios.post(`${SERVER_URL}/upload`, formData);
       setFile(null);
     } catch (error) {
       console.error('Помилка завантаження:', error.message);
@@ -72,65 +108,149 @@ function Chat() {
   };
 
   const handleLogout = () => {
-    logout(); // Викликаємо функцію logout
-    socket.emit('leave', { username, sessionId }); // Повідомляємо сервер про вихід
+    logout();
+    socket.emit('leave', { username, sessionId });
   };
+
+  const handleSearch = () => {
+    if (searchTerm.trim()) {
+      if (!socket.connected) {
+        console.error('WebSocket не підключений, socket.id:', socket.id);
+        alert('Помилка: немає з’єднання з сервером');
+        return;
+      }
+      console.log('Надсилаю запит на пошук:', searchTerm, 'із socket.id:', socket.id);
+      socket.emit('searchUser', { searchTerm });
+    }
+  };
+
+  const handleSelectUser = (user) => {
+    setSelectedChat(user);
+    setSearchTerm('');
+    setSearchResults([]);
+  };
+
+  const chatList = Object.keys(privateMessages).sort((a, b) => {
+    const lastMsgA = privateMessages[a][privateMessages[a].length - 1]?.timestamp || 0;
+    const lastMsgB = privateMessages[b][privateMessages[b].length - 1]?.timestamp || 0;
+    return new Date(lastMsgB) - new Date(lastMsgA);
+  });
 
   return (
     <div className="App">
-      <h1>Мій меседжер</h1>
+      <h1>Мій месенджер</h1>
       <div style={{ textAlign: 'right', marginBottom: '10px' }}>
-        <button onClick={handleLogout} style={{ padding: '5px 10px' }}>
+        <button onClick={handleLogout} style={{ padding: '5px 10px', marginRight: '10px' }}>
           Вийти
         </button>
       </div>
-      <div className="messages">
-        {messages.map((msg, index) => (
-          <div key={index} className={`message ${msg.username === username ? 'message-own' : 'message-other'}`}>
-            <strong>{msg.username}: </strong>
-            {msg.type === 'text' ? (
-              <p>{msg.content}</p>
-            ) : (
-              msg.content.match(/\.(jpeg|jpg|png|gif)$/i) ? (
-                <img src={`http://localhost:4000${msg.content}`} alt="uploaded" style={{ maxWidth: '200px' }} />
-              ) : (
-                <a href={`http://localhost:4000${msg.content}`} download>
-                  Завантажити: {msg.content.split('/').pop()}
-                </a>
-              )
-            )}
-            <small>{new Date(msg.timestamp).toLocaleTimeString()}</small>
-          </div>
-        ))}
-      </div>
-      <div className="input-area">
+
+      <div style={{ marginBottom: '10px' }}>
         <input
           type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Пошук активного користувача..."
+          style={{ padding: '5px', width: '200px' }}
         />
-        <button onClick={sendMessage}>Надіслати</button>
+        <button onClick={handleSearch} style={{ padding: '5px 10px' }}>
+          Шукати
+        </button>
+        {searchResults.length > 0 && (
+          <div className="search-results">
+            {searchResults.map((user, index) => (
+              <div
+                key={index}
+                onClick={() => handleSelectUser(user)}
+                style={{ padding: '5px', cursor: 'pointer' }}
+              >
+                {user}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      <form onSubmit={handleFileUpload}>
-        <input type="file" onChange={(e) => setFile(e.target.files[0])} />
-        <button type="submit">Завантажити</button>
-      </form>
+
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ width: '200px', border: '1px solid var(--input-border)', padding: '10px' }}>
+          <h3>Чати</h3>
+          {chatList.map((user) => (
+            <div
+              key={user}
+              onClick={() => setSelectedChat(user)}
+              style={{
+                padding: '5px',
+                cursor: 'pointer',
+                background: selectedChat === user ? '#d0d0d0' : 'transparent'
+              }}
+            >
+              {user} {privateMessages[user]?.length > 0 && (
+                <small>({new Date(privateMessages[user][privateMessages[user].length - 1].timestamp).toLocaleTimeString()})</small>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ flex: 1 }}>
+          {selectedChat ? (
+            <div className="private-messages">
+              <h3>Переписка з {selectedChat}</h3>
+              <div style={{ border: '1px solid var(--input-border)', padding: '10px', height: '300px', overflowY: 'auto', marginBottom: '10px' }}>
+                {privateMessages[selectedChat]?.map((msg, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      margin: '5px 0',
+                      textAlign: msg.sender_username === username ? 'right' : 'left'
+                    }}
+                  >
+                    <strong>{msg.sender_username}</strong>: {msg.content.match(/\.(jpeg|jpg|png|gif)$/i) ? (
+                      <img src={`${SERVER_URL}${msg.content}`} alt="uploaded" style={{ maxWidth: '200px' }} />
+                    ) : (
+                      msg.content
+                    )} <small>{new Date(msg.timestamp).toLocaleTimeString()}</small>
+                  </div>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={privateInput}
+                onChange={(e) => setPrivateInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendPrivateMessage()}
+                placeholder="Напишіть повідомлення..."
+                style={{ padding: '5px', width: '70%' }}
+              />
+              <button onClick={sendPrivateMessage} style={{ padding: '5px 10px' }}>
+                Надіслати
+              </button>
+              <form onSubmit={handleFileUpload} style={{ marginTop: '10px' }}>
+                <input type="file" onChange={(e) => setFile(e.target.files[0])} />
+                <button type="submit">Завантажити</button>
+              </form>
+            </div>
+          ) : (
+            <p>Виберіть чат або знайдіть нового користувача</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 function App() {
   const [auth, setAuth] = useState(() => {
-    const savedUsername = localStorage.getItem('username');
-    return { username: savedUsername || null, sessionId: Date.now().toString() };
+    const savedUsername = sessionStorage.getItem('username');
+    return {
+      username: savedUsername || null,
+      sessionId: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+    };
   });
 
   useEffect(() => {
     if (auth.username) {
-      localStorage.setItem('username', auth.username);
+      sessionStorage.setItem('username', auth.username);
     } else {
-      localStorage.removeItem('username');
+      sessionStorage.removeItem('username');
     }
   }, [auth.username]);
 
@@ -140,7 +260,7 @@ function App() {
 
   const logout = () => {
     setAuth((prev) => ({ ...prev, username: null }));
-    localStorage.removeItem('username');
+    sessionStorage.removeItem('username');
   };
 
   return (
