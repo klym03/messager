@@ -1,0 +1,80 @@
+# Залежності
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build файли
+/dist/
+build/
+*.log
+*.gz
+
+# Скомпільований вихідний код (з React/TypeScript)
+out/
+dist-ssr/
+*.local
+
+# Файли конфігурації, які не потрібно комітити
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+
+# macOS системні файли
+.DS_Store
+
+# Windows системні файли
+Thumbs.db
+ehthumbs.db
+
+# IDE та редактори
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+
+# Віртуальні середовища (якщо використовуються)
+venv/
+env/
+
+# Сервери (наприклад, для Node.js)
+server/*.log
+server/config/config.js
+server/config/*.json
+
+# Тестові файли
+coverage/
+*.test.js
+*.spec.js
+
+# Файли згенеровані плагінами (наприклад, ESLint)
+.eslintcache
+
+# Public файли, які не потрібно відстежувати (залежить від проєкту)
+public/*.log
+public/*.bak
+
+# macOS специфічні файли
+._*
+
+# Вебпак або інші бінарні файли
+*.zip
+*.tar.gz
+
+# Firebase
+.firebase/
+
+# Секретні ключі або конфігурації
+secrets/
+keys/
+*.pem
+*.key
+
+# Ігнорувати файли з певними розширеннями (приклад)
+*.bak
+*.swp

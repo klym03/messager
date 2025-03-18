@@ -371,7 +371,9 @@ html.dark .chat-item-name {
 }
 
 .last-message-time {
-  font-size: 12px;
+  font-size: 10px; /* Зменшуємо розмір шрифту */
+  line-height: 1; /* Зменшуємо міжрядковий інтервал */
+  margin-left: 8px; /* Додаємо невеликий відступ */
 }
 
 .chat-area {
@@ -448,9 +450,14 @@ html.dark .chat-header h3 {
   border-bottom-left-radius: 5px;
 }
 
+.message-text {
+  display: block;
+  margin-bottom: 6px; /* Додаємо відступ між текстом і часом */
+}
+
 .message-time {
-  font-size: 11px;
-  margin-top: 5px;
+  font-size: 9px; /* Зменшуємо розмір шрифту */
+  line-height: 1; /* Зменшуємо міжрядковий інтервал */
   align-self: flex-end;
 }
 

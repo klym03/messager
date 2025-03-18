@@ -8,12 +8,12 @@ export const ThemeContext = createContext({
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
-    return savedTheme || 'light'; // За замовчуванням світла тема
+    return savedTheme || 'light';
   });
 
   useEffect(() => {
     localStorage.setItem('theme', theme);
-    document.documentElement.className = theme; // Застосовуємо тему до <html>
+    document.documentElement.className = theme;
     console.log('Застосовуємо тему:', theme);
   }, [theme]);
 

@@ -9,7 +9,9 @@ const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
+
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
@@ -239,6 +241,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     res.status(500).send('Помилка сервера');
   }
 });
+
 
 server.listen(4000, '0.0.0.0', () => {
   console.log(`Сервер запущено на http://${ipAddress}:4000 (доступний у мережі)`);

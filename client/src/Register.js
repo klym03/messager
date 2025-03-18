@@ -12,20 +12,17 @@ function Register() {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
 
-  // Використовуємо localhost для тестування на комп’ютері, або IP для телефону
   const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : '192.168.1.100'; // Автоматично визначаємо IP
   const SERVER_URL = `http://${SERVER_IP}:4000`;
 
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    // Перевірка збігу паролів
     if (password !== confirmPassword) {
       setError('Паролі не збігаються');
       return;
     }
 
-    // Додаткова валідація
     if (!username || !password) {
       setError('Введіть ім’я користувача та пароль');
       return;

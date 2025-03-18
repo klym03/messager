@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react'; // Додаємо useRef
 import { Route, Routes, Navigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
 import Login from './Login';
 import Register from './Register';
-import { ThemeProvider, ThemeContext } from './ThemeContext'; // Залишаємо для Chat
+import { ThemeProvider, ThemeContext } from './ThemeContext';
 import ThemeToggle from './components/ThemeToggle';
 import './App.css';
 
@@ -16,13 +16,21 @@ const socket = io(SERVER_URL, { transports: ['websocket'], reconnection: true, r
 
 function Chat() {
   const { username, sessionId, logout } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext); // Використовуємо тему для Chat
+  const { theme } = useContext(ThemeContext);
   const [privateMessages, setPrivateMessages] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [privateInput, setPrivateInput] = useState('');
   const [file, setFile] = useState(null);
+
+  // Створюємо ref для контейнера повідомлень
+  const messagesEndRef = useRef(null);
+
+  // Функція для прокрутки вниз
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -85,6 +93,11 @@ function Chat() {
     };
   }, [username, sessionId, selectedChat]);
 
+  // Прокрутка вниз при зміні повідомлень або виборі чату
+  useEffect(() => {
+    scrollToBottom();
+  }, [privateMessages, selectedChat]);
+
   const sendPrivateMessage = () => {
     if (privateInput.trim() && selectedChat) {
       socket.emit('sendPrivateMessage', { receiver: selectedChat, content: privateInput });
@@ -137,12 +150,19 @@ function Chat() {
     return new Date(lastMsgB) - new Date(lastMsgA);
   });
 
+  const formatTime = (timestamp) => {
+    return new Date(timestamp).toLocaleTimeString('uk-UA', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   return (
     <div className={`App ${theme || 'light'}`}>
       <header className="app-header">
         <div className="user-info">
           <div className="user-actions">
-            <ThemeToggle /> {/* Залишаємо для Chat */}
+            <ThemeToggle />
             <span className="username">{username}</span>
             <button onClick={handleLogout} className="logout-btn">
               Вийти
@@ -189,7 +209,7 @@ function Chat() {
                     <span className="chat-item-name">{user}</span>
                     {privateMessages[user]?.length > 0 && (
                       <span className="last-message-time">
-                        {new Date(privateMessages[user][privateMessages[user].length - 1].timestamp).toLocaleTimeString()}
+                        {formatTime(privateMessages[user][privateMessages[user].length - 1].timestamp)}
                       </span>
                     )}
                   </div>
@@ -212,15 +232,19 @@ function Chat() {
                     className={`message ${msg.sender_username === username ? 'sent' : 'received'}`}
                   >
                     <div className="message-content">
-                      <strong>{msg.sender_username}</strong>: {msg.content.match(/\.(jpeg|jpg|png|gif)$/i) ? (
-                        <img src={`${SERVER_URL}${msg.content}`} alt="uploaded" className="message-image" />
-                      ) : (
-                        msg.content
-                      )}
-                      <span className="message-time">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                      <div className="message-text">
+                        {msg.content.match(/\.(jpeg|jpg|png|gif)$/i) ? (
+                          <img src={`${SERVER_URL}${msg.content}`} alt="uploaded" className="message-image" />
+                        ) : (
+                          msg.content
+                        )}
+                      </div>
+                      <span className="message-time">{formatTime(msg.timestamp)}</span>
                     </div>
                   </div>
                 ))}
+                {/* Додаємо невидимий елемент для прокрутки */}
+                <div ref={messagesEndRef} />
               </div>
               <div className="message-input">
                 <form onSubmit={handleFileUpload} className="upload-form">
