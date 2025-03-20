@@ -600,3 +600,132 @@ html.dark .message-input {
     flex: 1;
   }
 }
+/* Змінні для кольорів (додай це на початку файлу, якщо ще немає) */
+:root {
+  --header-bg: #f0f2f5;
+  --header-text: #333;
+  --header-border: #d3d6db;
+  --logout-bg: #dc3545;
+  --logout-hover: #c82333;
+  --accent-color: #0088cc;
+}
+
+html.dark {
+  --header-bg: #2a2a40;
+  --header-text: #e0e0e0;
+  --header-border: #3a3a50;
+  --logout-bg: #dc3545;
+  --logout-hover: #c82333;
+  --accent-color: #6b5b95;
+}
+
+/* Стилі для заголовка */
+.app-header {
+  display: flex;
+  justify-content: space-between; /* Розміщуємо назву зліва, а user-info справа */
+  align-items: center;
+  padding: 12px 20px; /* Збільшив відступи */
+  background-color: var(--header-bg);
+  color: var(--header-text);
+  border-bottom: 1px solid var(--header-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Легка тінь */
+  position: sticky; /* Фіксуємо заголовок */
+  top: 0;
+  z-index: 10;
+}
+
+.app-title {
+  display: flex;
+  align-items: center;
+}
+
+.app-title h1 {
+  font-size: 22px; /* Невеликий розмір для назви */
+  font-weight: 600;
+  margin: 0;
+  color: var(--header-text);
+  letter-spacing: 0.5px; /* Легкий відступ між літерами */
+  animation: fadeIn 0.8s ease-in; /* Анімація появи */
+}
+
+/* Анімація для назви */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.username {
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--header-text);
+  background-color: rgba(255, 255, 255, 0.1); /* Легкий фон для імені */
+  padding: 4px 10px;
+  border-radius: 12px; /* Закруглені краї */
+}
+
+.theme-toggle-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  color: var(--accent-color);
+  transition: transform 0.3s;
+}
+
+.theme-toggle-btn:hover {
+  transform: scale(1.2);
+}
+
+.logout-btn {
+  background-color: var(--logout-bg);
+  color: white;
+  border: none;
+  padding: 6px 12px; /* Збільшив відступи */
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s, transform 0.1s;
+}
+
+.logout-btn:hover {
+  background-color: var(--logout-hover);
+  transform: scale(1.05); /* Легке збільшення при наведенні */
+}
+
+/* Адаптивність для малих екранів */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 10px 15px; /* Менші відступи на мобільних */
+  }
+
+  .app-title h1 {
+    font-size: 18px; /* Менший розмір шрифту */
+  }
+
+  .username {
+    font-size: 14px;
+    padding: 3px 8px;
+  }
+
+  .logout-btn {
+    padding: 5px 10px;
+  }
+}

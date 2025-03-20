@@ -266,6 +266,9 @@ function Chat() {
   return (
     <div className={`App ${theme || 'light'}`}>
       <header className="app-header">
+        <div className="app-title">
+          <h1>SkalMess</h1>
+        </div>
         <div className="user-info">
           <div className="user-actions">
             <ThemeToggle />
