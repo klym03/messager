@@ -11,7 +11,6 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
@@ -63,8 +62,8 @@ function getLocalIPAddress() {
 
 const ipAddress = getLocalIPAddress();
 
-// Зберігання активних користувачів (username -> [socket.id])
 const activeUsers = new Map();
+const publicKeys = {};
 
 io.on('connection', async (socket) => {
   console.log('Користувач підключився:', socket.id);
@@ -83,19 +82,27 @@ io.on('connection', async (socket) => {
     activeUsers.get(username).push(socket.id);
     console.log(`Користувач ${username} приєднався з sessionId: ${sessionId}, активні вкладки:`, activeUsers.get(username));
     console.log('Поточний стан activeUsers:', Array.from(activeUsers.entries()));
+
     try {
       const privateMessages = await pool.query(
         'SELECT * FROM private_messages WHERE sender_username = $1 OR receiver_username = $1 ORDER BY timestamp ASC',
         [username]
       );
       socket.emit('privateMessageHistory', privateMessages.rows);
+      socket.emit('publicKeyUpdate', publicKeys);
     } catch (err) {
       console.error('Помилка при отриманні історії приватних повідомлень:', err);
       socket.emit('privateMessageHistory', []);
     }
   });
 
-  socket.on('sendPrivateMessage', async ({ receiver, content }) => {
+  socket.on('setPublicKey', ({ username, publicKey }) => {
+    console.log(`Отримано публічний ключ від ${username}:`, publicKey);
+    publicKeys[username] = publicKey;
+    io.emit('publicKeyUpdate', publicKeys);
+  });
+
+  socket.on('sendPrivateMessage', async ({ receiver, content, tempId }) => {
     if (!username) {
       socket.emit('privateMessageError', 'Ви не авторизовані');
       return;
@@ -107,12 +114,17 @@ io.on('connection', async (socket) => {
       return;
     }
 
+    if (!publicKeys[receiver]) {
+      socket.emit('privateMessageError', `Публічний ключ для ${receiver} не знайдено. Користувач не онлайн.`);
+      return;
+    }
+
     try {
       const result = await pool.query(
         'INSERT INTO private_messages (sender_username, receiver_username, content, timestamp) VALUES ($1, $2, $3, $4) RETURNING *',
         [username, receiver, content, new Date()]
       );
-      const newMessage = result.rows[0];
+      const newMessage = { ...result.rows[0], tempId }; // Додаємо tempId до повідомлення
 
       receiverSockets.forEach(socketId => {
         io.to(socketId).emit('newPrivateMessage', newMessage);
@@ -160,8 +172,10 @@ io.on('connection', async (socket) => {
       activeUsers.set(user, activeUsers.get(user).filter(id => id !== socket.id));
       if (activeUsers.get(user).length === 0) {
         activeUsers.delete(user);
+        delete publicKeys[user];
       }
     }
+    io.emit('publicKeyUpdate', publicKeys);
     console.log('Поточний стан activeUsers після leave:', Array.from(activeUsers.entries()));
   });
 
@@ -171,8 +185,10 @@ io.on('connection', async (socket) => {
       activeUsers.set(username, activeUsers.get(username).filter(id => id !== socket.id));
       if (activeUsers.get(username).length === 0) {
         activeUsers.delete(username);
+        delete publicKeys[username];
       }
     }
+    io.emit('publicKeyUpdate', publicKeys);
     console.log('Поточний стан activeUsers після disconnect:', Array.from(activeUsers.entries()));
   });
 });
@@ -241,7 +257,6 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     res.status(500).send('Помилка сервера');
   }
 });
-
 
 server.listen(4000, '0.0.0.0', () => {
   console.log(`Сервер запущено на http://${ipAddress}:4000 (доступний у мережі)`);
