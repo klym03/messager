@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { Route, Routes, Navigate } from 'react-router-dom';
 import io from 'socket.io-client';
-import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import Login from './Login';
 import Register from './Register';
@@ -23,11 +22,9 @@ function Chat() {
   const [searchResults, setSearchResults] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [privateInput, setPrivateInput] = useState('');
-  const [file, setFile] = useState(null);
   const [privateKey, setPrivateKey] = useState(null);
   const [userPublicKeys, setUserPublicKeys] = useState({});
-  const pendingMessages = useRef({}); // Замінили useState на useRef
-
+  const pendingMessages = useRef({});
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -40,21 +37,17 @@ function Chat() {
   };
 
   const encryptMessage = (message, publicKey) => {
-    console.log('Шифрування повідомлення:', { message, publicKey });
     return CryptoJS.AES.encrypt(message, publicKey).toString();
   };
 
   const decryptMessage = (ciphertext, privateKey) => {
-    console.log('Спроба дешифрування:', { ciphertext, privateKey });
     try {
       if (!ciphertext || !privateKey) {
         throw new Error('Відсутні ciphertext або privateKey');
       }
       const bytes = CryptoJS.AES.decrypt(ciphertext, privateKey);
       const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-      console.log('Результат дешифрування:', { decrypted });
       if (!decrypted) {
-        console.warn('Дешифрування повернуло порожній рядок, повертаємо ciphertext:', ciphertext);
         return ciphertext;
       }
       return decrypted;
@@ -67,7 +60,6 @@ function Chat() {
   useEffect(() => {
     if (username) {
       const { privateKey, publicKey } = generateKeyPair();
-      console.log(`Генерація ключів для ${username}:`, { privateKey, publicKey });
       setPrivateKey(privateKey);
       socket.emit('setPublicKey', { username, publicKey });
     }
@@ -80,7 +72,6 @@ function Chat() {
     });
 
     socket.on('privateMessageHistory', (history) => {
-      console.log('Отримано історію приватних повідомлень:', history);
       const chats = {};
       history.forEach(msg => {
         const otherUser = msg.sender_username === username ? msg.receiver_username : msg.sender_username;
@@ -95,7 +86,6 @@ function Chat() {
     });
 
     socket.on('newPrivateMessage', (message) => {
-      console.log('Отримано нове приватне повідомлення:', message);
       const otherUser = message.sender_username === username ? message.receiver_username : message.sender_username;
       const content = message.sender_username === username ? (pendingMessages.current[message.tempId] || decryptMessage(message.content, privateKey)) : decryptMessage(message.content, privateKey);
 
@@ -115,7 +105,6 @@ function Chat() {
     });
 
     socket.on('publicKeyUpdate', (keys) => {
-      console.log('Оновлено публічні ключі:', keys);
       const filteredKeys = Object.fromEntries(
         Object.entries(keys).filter(([key]) => typeof key === 'string' && key.trim() !== '')
       );
@@ -123,12 +112,10 @@ function Chat() {
     });
 
     socket.on('privateMessageError', (error) => {
-      console.log('Помилка приватного повідомлення:', error);
       alert(error);
     });
 
     socket.on('searchResults', (results) => {
-      console.log('Результати пошуку отримані для socket.id:', socket.id, 'результати:', results);
       setSearchResults(results);
     });
 
@@ -138,7 +125,6 @@ function Chat() {
     });
 
     socket.on('reconnect', (attempt) => {
-      console.log('Повторне підключення успішне, спроба:', attempt, 'socket.id:', socket.id);
       socket.emit('join', { username, sessionId });
     });
 
@@ -152,7 +138,7 @@ function Chat() {
       socket.off('connect_error');
       socket.off('reconnect');
     };
-  }, [username, sessionId, selectedChat, privateKey]); // pendingMessages більше не потрібен у залежностях
+  }, [username, sessionId, selectedChat, privateKey]);
 
   useEffect(() => {
     scrollToBottom();
@@ -160,7 +146,6 @@ function Chat() {
 
   const sendPrivateMessage = () => {
     if (privateInput.trim() && selectedChat && userPublicKeys[selectedChat]) {
-      console.log(`Відправка повідомлення від ${username} до ${selectedChat}:`, privateInput);
       const encryptedContent = encryptMessage(privateInput, userPublicKeys[selectedChat]);
       const tempId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
       const tempMessage = {
@@ -180,51 +165,68 @@ function Chat() {
       socket.emit('sendPrivateMessage', { receiver: selectedChat, content: encryptedContent, tempId });
       setPrivateInput('');
     } else {
-      console.error('Помилка відправлення: відсутній текст, обраний чат або публічний ключ', {
-        privateInput,
-        selectedChat,
-        userPublicKeys: { ...userPublicKeys },
-      });
       if (!userPublicKeys[selectedChat]) {
         alert(`Публічний ключ для ${selectedChat} не знайдено. Переконайтеся, що користувач онлайн.`);
       }
     }
   };
 
-  const handleFileUpload = async (e) => {
+  const handleFileUpload = (e) => {
     e.preventDefault();
-    if (!file) return;
+    const file = e.target.files[0];
+    console.log("File selected:", file);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('username', username);
-
-    try {
-      const response = await axios.post(`${SERVER_URL}/upload`, formData);
-      if (response.data === 'Файл завантажено') {
-        const filePath = `/uploads/${file.name}`;
-        const tempId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-        const tempMessage = {
-          id: tempId,
-          sender_username: username,
-          receiver_username: selectedChat,
-          content: filePath,
-          timestamp: new Date().toISOString(),
-        };
-        setPrivateMessages(prev => {
-          const updatedChats = { ...prev };
-          if (!updatedChats[selectedChat]) updatedChats[selectedChat] = [];
-          updatedChats[selectedChat] = [...updatedChats[selectedChat], tempMessage];
-          return updatedChats;
-        });
-        pendingMessages.current[tempId] = filePath;
-        socket.emit('sendPrivateMessage', { receiver: selectedChat, content: filePath, tempId });
-      }
-      setFile(null);
-    } catch (error) {
-      console.error('Помилка завантаження:', error.message);
-      alert('Помилка завантаження файлу. Перевірте з’єднання з сервером.');
+    if (!file) {
+      console.log("Файл не вибрано");
+      return;
     }
+
+    if (!selectedChat) {
+      alert("Виберіть чат перед відправкою файлу!");
+      return;
+    }
+
+    // Перевірка розміру файлу (максимум 10 МБ)
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Файл занадто великий! Максимальний розмір — 10 МБ.");
+      return;
+    }
+
+    // Перевірка типу файлу (лише зображення)
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      alert("Дозволені лише зображення (JPEG, PNG, GIF)!");
+      return;
+    }
+
+    // Створюємо повідомлення з файлом
+    const tempId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    const message = {
+      id: tempId,
+      sender_username: username,
+      receiver_username: selectedChat,
+      content: '', // Порожній текст, бо це файл
+      file: file, // Зберігаємо файл для локального відображення
+      timestamp: new Date().toISOString(),
+    };
+
+    // Додаємо повідомлення до стану
+    setPrivateMessages(prev => {
+      const updatedChats = { ...prev };
+      if (!updatedChats[selectedChat]) updatedChats[selectedChat] = [];
+      updatedChats[selectedChat] = [...updatedChats[selectedChat], message];
+      return updatedChats;
+    });
+
+    // Відправляємо повідомлення через WebSocket (без сервера для тестування)
+    socket.emit('sendPrivateMessage', {
+      receiver: selectedChat,
+      content: `Файл: ${file.name}`,
+      tempId,
+    });
+
+    // Очищаємо інпут
+    e.target.value = null;
   };
 
   const handleLogout = () => {
@@ -235,11 +237,9 @@ function Chat() {
   const handleSearch = () => {
     if (searchTerm.trim()) {
       if (!socket.connected) {
-        console.error('WebSocket не підключений, socket.id:', socket.id);
         alert('Помилка: немає з’єднання з сервером');
         return;
       }
-      console.log('Надсилаю запит на пошук:', searchTerm, 'із socket.id:', socket.id);
       socket.emit('searchUser', { searchTerm });
     }
   };
@@ -267,7 +267,7 @@ function Chat() {
     <div className={`App ${theme || 'light'}`}>
       <header className="app-header">
         <div className="app-title">
-          <h1>SkalMess</h1>
+          <h1>SkalMess@</h1>
         </div>
         <div className="user-info">
           <div className="user-actions">
@@ -341,13 +341,28 @@ function Chat() {
                     className={`message ${msg.sender_username === username ? 'sent' : 'received'}`}
                   >
                     <div className="message-content">
-                      <div className="message-text">
-                        {msg.content && msg.content.match(/\.(jpeg|jpg|png|gif)$/i) ? (
-                          <img src={`${SERVER_URL}${msg.content}`} alt="uploaded" className="message-image" />
-                        ) : (
-                          msg.content || 'Помилка: повідомлення не завантажено'
-                        )}
-                      </div>
+                      {msg.content && (
+                        <div className="message-text">
+                          {msg.content.match(/\.(jpeg|jpg|png|gif)$/i) ? (
+                            <img
+                              src={`${SERVER_URL}${msg.content}`}
+                              alt="uploaded"
+                              className="message-image"
+                            />
+                          ) : (
+                            msg.content
+                          )}
+                        </div>
+                      )}
+                      {msg.file && msg.file.type.startsWith('image/') && (
+                        <div className="message-text">
+                          <img
+                            src={URL.createObjectURL(msg.file)}
+                            alt="uploaded"
+                            className="message-image"
+                          />
+                        </div>
+                      )}
                       <span className="message-time">{formatTime(msg.timestamp)}</span>
                     </div>
                   </div>
@@ -355,9 +370,16 @@ function Chat() {
                 <div ref={messagesEndRef} />
               </div>
               <div className="message-input">
-                <form onSubmit={handleFileUpload} className="upload-form">
-                  <input type="file" onChange={(e) => setFile(e.target.files[0])} className="file-input" id="file-upload" />
-                  <label htmlFor="file-upload" className="upload-btn">📎</label>
+                <form className="upload-form">
+                  <input
+                    type="file"
+                    className="file-input"
+                    id="file-upload"
+                    onChange={handleFileUpload}
+                  />
+                  <label htmlFor="file-upload" className="upload-btn" onClick={() => console.log("Upload button clicked")}>
+                    📎
+                  </label>
                 </form>
                 <input
                   type="text"
@@ -367,7 +389,9 @@ function Chat() {
                   placeholder="Напишіть повідомлення..."
                   className="message-input-field"
                 />
-                <button onClick={sendPrivateMessage} className="send-btn">➤</button>
+                <button onClick={sendPrivateMessage} className="send-btn">
+                  ➤
+                </button>
               </div>
             </div>
           ) : (
