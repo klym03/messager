@@ -11,8 +11,7 @@ function Login() {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
 
-  const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : '192.168.1.100'; // Автоматично визначаємо IP
-  const SERVER_URL = `http://${SERVER_IP}:4000`;
+  const SERVER_URL = 'http://192.168.1.69:4000';
 
   const handleLogin = async (e) => {
     e.preventDefault();

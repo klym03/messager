@@ -10,8 +10,8 @@ import './App.css';
 
 export const AuthContext = React.createContext();
 
-const SERVER_IP = window.location.hostname === 'localhost' ? 'localhost' : '192.168.1.100';
-const SERVER_URL = `http://${SERVER_IP}:4000`;
+// Використовуємо фіксовану IP-адресу сервера
+const SERVER_URL = 'http://192.168.1.69:4000';
 const socket = io(SERVER_URL, { transports: ['websocket'], reconnection: true, reconnectionAttempts: 5 });
 
 function Chat() {
@@ -63,7 +63,7 @@ function Chat() {
       setPrivateKey(privateKey);
       socket.emit('setPublicKey', { username, publicKey });
     }
-  }, [username]);
+  }, [username, socket]);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -87,17 +87,21 @@ function Chat() {
 
     socket.on('newPrivateMessage', (message) => {
       const otherUser = message.sender_username === username ? message.receiver_username : message.sender_username;
-      const content = message.sender_username === username ? (pendingMessages.current[message.tempId] || decryptMessage(message.content, privateKey)) : decryptMessage(message.content, privateKey);
+      const content = message.sender_username === username ? (pendingMessages.current[message.tempId]?.content || decryptMessage(message.content, privateKey)) : decryptMessage(message.content, privateKey);
 
       setPrivateMessages(prev => {
         const updatedChats = { ...prev };
         if (!updatedChats[otherUser]) updatedChats[otherUser] = [];
 
         if (message.sender_username === username) {
+          const file = pendingMessages.current[message.tempId]?.file || null;
+
           updatedChats[otherUser] = updatedChats[otherUser].filter(msg => msg.id !== message.tempId);
+          updatedChats[otherUser] = [...updatedChats[otherUser], { ...message, content, file }];
+        } else {
+          updatedChats[otherUser] = [...updatedChats[otherUser], { ...message, content }];
         }
 
-        updatedChats[otherUser] = [...updatedChats[otherUser], { ...message, content }];
         return updatedChats;
       });
 
@@ -121,11 +125,21 @@ function Chat() {
 
     socket.on('connect_error', (err) => {
       console.error('Помилка підключення до WebSocket:', err.message);
+      console.error('Деталі помилки:', err);
       alert('Помилка підключення до сервера. Перевірте мережу або сервер.');
     });
 
     socket.on('reconnect', (attempt) => {
+      console.log('Реконнект, спроба:', attempt);
       socket.emit('join', { username, sessionId });
+    });
+
+    socket.on('reconnect_error', (err) => {
+      console.error('Помилка реконнекту:', err.message);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('Не вдалося реконнектитися після всіх спроб');
     });
 
     return () => {
@@ -137,8 +151,10 @@ function Chat() {
       socket.off('connect');
       socket.off('connect_error');
       socket.off('reconnect');
+      socket.off('reconnect_error');
+      socket.off('reconnect_failed');
     };
-  }, [username, sessionId, selectedChat, privateKey]);
+  }, [username, sessionId, selectedChat, privateKey, socket]);
 
   useEffect(() => {
     scrollToBottom();
@@ -161,7 +177,7 @@ function Chat() {
         updatedChats[selectedChat] = [...updatedChats[selectedChat], tempMessage];
         return updatedChats;
       });
-      pendingMessages.current[tempId] = privateInput;
+      pendingMessages.current[tempId] = { content: privateInput };
       socket.emit('sendPrivateMessage', { receiver: selectedChat, content: encryptedContent, tempId });
       setPrivateInput('');
     } else {
@@ -171,7 +187,7 @@ function Chat() {
     }
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     e.preventDefault();
     const file = e.target.files[0];
     console.log("File selected:", file);
@@ -199,31 +215,63 @@ function Chat() {
       return;
     }
 
-    // Створюємо повідомлення з файлом
+    // Створюємо тимчасове повідомлення з файлом
     const tempId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-    const message = {
+    const tempMessage = {
       id: tempId,
       sender_username: username,
       receiver_username: selectedChat,
-      content: '', // Порожній текст, бо це файл
-      file: file, // Зберігаємо файл для локального відображення
+      content: '',
+      file: file,
       timestamp: new Date().toISOString(),
     };
 
-    // Додаємо повідомлення до стану
+    // Додаємо тимчасове повідомлення до стану
     setPrivateMessages(prev => {
       const updatedChats = { ...prev };
       if (!updatedChats[selectedChat]) updatedChats[selectedChat] = [];
-      updatedChats[selectedChat] = [...updatedChats[selectedChat], message];
+      updatedChats[selectedChat] = [...updatedChats[selectedChat], tempMessage];
       return updatedChats;
     });
 
-    // Відправляємо повідомлення через WebSocket (без сервера для тестування)
-    socket.emit('sendPrivateMessage', {
-      receiver: selectedChat,
-      content: `Файл: ${file.name}`,
-      tempId,
-    });
+    // Зберігаємо файл у pendingMessages
+    pendingMessages.current[tempId] = { file };
+
+    // Відправляємо файл на сервер через FormData
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('username', username);
+    formData.append('receiver', selectedChat);
+    formData.append('tempId', tempId);
+
+    try {
+      const response = await fetch(`${SERVER_URL}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Server response:", data);
+
+      if (data.success) {
+        const filePath = data.filePath;
+        socket.emit('sendPrivateMessage', { receiver: selectedChat, content: filePath, tempId });
+      } else {
+        throw new Error(data.error || 'Помилка завантаження файлу');
+      }
+    } catch (error) {
+      console.error('Помилка завантаження:', error.message);
+      alert('Помилка завантаження файлу. Перевірте з’єднання з сервером.');
+      setPrivateMessages(prev => {
+        const updatedChats = { ...prev };
+        updatedChats[selectedChat] = updatedChats[selectedChat].filter(msg => msg.id !== tempId);
+        return updatedChats;
+      });
+    }
 
     // Очищаємо інпут
     e.target.value = null;
@@ -376,10 +424,17 @@ function Chat() {
                     className="file-input"
                     id="file-upload"
                     onChange={handleFileUpload}
+                    style={{ display: 'none' }}
                   />
-                  <label htmlFor="file-upload" className="upload-btn" onClick={() => console.log("Upload button clicked")}>
+                  <span
+                    className="upload-btn"
+                    onClick={(e) => {
+                      console.log("Upload button clicked");
+                      document.getElementById('file-upload').click();
+                    }}
+                  >
                     📎
-                  </label>
+                  </span>
                 </form>
                 <input
                   type="text"
@@ -431,7 +486,7 @@ function App() {
 
   return (
     <ThemeProvider>
-      <AuthContext.Provider value={{ ...auth, login, logout }}>
+      <AuthContext.Provider value={{ ...auth, login, logout, serverUrl: SERVER_URL }}>
         <div className="App">
           <Routes>
             <Route

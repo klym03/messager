@@ -32,6 +32,18 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+const getLocalIp = () => {
+  const networkInterfaces = os.networkInterfaces();
+  return Object.values(networkInterfaces)
+    .flat()
+    .find((iface) => iface.family === 'IPv4' && !iface.internal)?.address || 'localhost';
+};
+
+app.get('/server-ip', (req, res) => {
+  const ip = getLocalIp();
+  res.json({ serverIp: ip });
+});
+
 const pool = new Pool({
   user: 'patrick',
   host: 'localhost',
