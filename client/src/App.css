@@ -64,7 +64,6 @@ html.dark {
 
 /* === Загальні стилі === */
 html {
-  background-color: var(--primary-bg);
   transition: background-color 0.3s, color 0.3s;
 }
 
@@ -74,8 +73,15 @@ html {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Стилі для сторінки чату */
+.chat-page {
   background-color: var(--primary-bg);
   color: var(--text-primary);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* === Заголовок === */
@@ -455,82 +461,6 @@ html {
   text-align: center;
   padding: 20px;
   color: var(--text-secondary);
-}
-
-/* === Сторінки автентифікації === */
-.auth-page {
-  position: relative;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--primary-bg);
-}
-
-.auth-header {
-  padding: 10px 20px;
-  display: flex;
-  justify-content: flex-end;
-  background-color: var(--secondary-bg);
-  border-bottom: 1px solid var(--header-border);
-}
-
-.login-container,
-.register-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  background-color: var(--primary-bg);
-}
-
-.login-container h2,
-.register-container h2 {
-  color: var(--text-primary);
-}
-
-.login-container form,
-.register-container form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 20px;
-  background-color: var(--sidebar-bg);
-  border: 1px solid var(--header-border);
-  border-radius: 5px;
-  box-shadow: 0 1px 3px var(--shadow);
-}
-
-.login-container input,
-.register-container input {
-  padding: 8px;
-  border-radius: 5px;
-  outline: none;
-  background-color: var(--secondary-bg);
-  color: var(--text-primary);
-  border: 1px solid var(--header-border);
-  transition: border-color 0.3s;
-}
-
-.login-container input:focus,
-.register-container input:focus {
-  border-color: var(--accent-color);
-}
-
-.login-container button,
-.register-container button {
-  padding: 8px;
-  background-color: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.login-container button:hover,
-.register-container button:hover {
-  background-color: var(--accent-hover);
 }
 
 /* === Адаптивність === */
